@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  sleek-airflow:
+    image: sleek-airflow:latest
+    volumes:
+      - ./airflow:/opt/airflow
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "airflow db init &&
+               airflow users create --username  --password  --firstname  --lastname  --role  --email  &&
+               airflow webserver & airflow scheduler"
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - airflow_net
+
+  sleek-smtp:
+    image: bytemark/smtp
+    restart: always
+    networks:
+      - airflow_net
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: 
+      POSTGRES_PASSWORD: 
+      POSTGRES_DB: 
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - airflow_net
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+
+networks:
+  airflow_net:
+    driver: bridge
+
+volumes:
+  postgres-db-volume:
+    driver: local
